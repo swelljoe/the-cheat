@@ -19,10 +19,14 @@ const version = "0.1.0"
 func main() {
 	// Command line args
 	var page bool
-	var css string
+	var css, title, header string
 	var cols int
 	flag.BoolVar(&page, "page", true,
 		"Generate a standalone HTML page")
+	flag.StringVar(&title, "title", "",
+		"Title for the page (implies -page)")
+	flag.StringVar(&header, "header", "",
+		"Header for the page (implies -page)")
 	flag.StringVar(&css, "css", "",
 		"Link to a custom CSS style sheet (implies -page)")
 	flag.IntVar(&cols, "cols", 3,
@@ -43,6 +47,14 @@ func main() {
 		page = true
 	} else {
 		css = "css/cheat.css"
+	}
+
+	if title != "" {
+		page = true
+	}
+
+	if title != "" {
+		page = true
 	}
 
 	// This might make it impossible to leave page off
@@ -74,8 +86,9 @@ func main() {
 	ast := md.Parse(input)
 	var buff bytes.Buffer
 	if page {
-		writeHeader(&buff, "doot")
+		writeHeader(&buff, title, header)
 	}
+	buff.WriteString("<div class='cheat flex three'>\n")
 	r := bf.NewHTMLRenderer(bf.HTMLRendererParameters{
 		Flags: bf.CompletePage})
 	ast.Walk(func(node *bf.Node, entering bool) bf.WalkStatus {
@@ -92,30 +105,35 @@ func main() {
 		}
 		return bf.GoToNext
 	})
+	buff.WriteString("</div>\n")
 	if page {
 		writeFooter(&buff)
 	}
 	fmt.Printf("%s\n", buff.Bytes())
 }
 
-func writeHeader(w *bytes.Buffer, title string) {
+func writeHeader(w *bytes.Buffer, title string, header string) {
 	w.WriteString("<!DOCTYPE html>\n")
 	w.WriteString("<html lang='en-us'>\n")
 	w.WriteString("<head>\n")
 	w.WriteString("<meta charset='utf-8'>\n")
-	w.WriteString("<title>")
-	w.WriteString(title)
-	w.WriteString("</title>\n")
-	w.WriteString("<link rel='stylesheet' href='css/picnic.min.css' />\n")
-	w.WriteString("<link rel='stylesheet' href='css/cheat.css' />\n")
+	if title != "" {
+		w.WriteString("<title>")
+		w.WriteString(title)
+		w.WriteString("</title>\n")
+	}
+	w.WriteString("<link rel='stylesheet' href='css/cheat.min.css' />\n")
 	w.WriteString("</head>\n\n")
 	w.WriteString("<body>\n")
 	w.WriteString("<main>\n")
-	w.WriteString("<div class'flex three'>\n")
+	if header != "" {
+		w.WriteString("<h1>")
+		w.WriteString(header)
+		w.WriteString("</h1>\n")
+	}
 }
 
 func writeFooter(w *bytes.Buffer) {
-	w.WriteString("</div>\n")
 	w.WriteString("</main>\n")
 	w.WriteString("</body>\n")
 	w.WriteString("</html>\n")
