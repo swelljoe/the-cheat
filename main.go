@@ -20,15 +20,18 @@ func main() {
 	// Command line args
 	var page bool
 	var css string
+	var cols int
 	flag.BoolVar(&page, "page", true,
 		"Generate a standalone HTML page")
 	flag.StringVar(&css, "css", "",
 		"Link to a custom CSS style sheet (implies -page)")
+	flag.IntVar(&cols, "cols", 3,
+		"Maximum number of columns on page (implies -page)")
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "The Cheat Cheat Sheet Maker v"+version+
-			"Copyright 2017 Joe Cooper <swelljoe@gmail.com>\n\n"+
+		fmt.Fprintf(os.Stderr, "The Cheat - A Cheat Sheet Maker v"+version+
+			"\nCopyright 2017 Joe Cooper <swelljoe@gmail.com>\n\n"+
 			"Usage:\n"+
-			"	%s [options] [inputfile [outputfile]]\n\n"+
+			"%s [options] [inputfile [outputfile]]\n\n"+
 			"Options:\n",
 			os.Args[0])
 		flag.PrintDefaults()
@@ -42,15 +45,15 @@ func main() {
 		css = "css/cheat.css"
 	}
 
+	// This might make it impossible to leave page off
+	if cols > 0 {
+		page = true
+	}
+
 	var input []byte
 	var err error
 	args := flag.Args()
 	switch len(args) {
-	case 0:
-		if input, err = ioutil.ReadAll(os.Stdin); err != nil {
-			fmt.Fprintln(os.Stderr, "Error reading from stdin:", err)
-			os.Exit(-1)
-		}
 	case 1, 2:
 		if input, err = ioutil.ReadFile(args[0]); err != nil {
 			fmt.Fprintln(os.Stderr, "Error reading from", args[0], ":", err)
@@ -61,10 +64,20 @@ func main() {
 		os.Exit(-1)
 	}
 
+	//var htmlFlags bf.HTMLFlags
+
+	//if page {
+	//	htmlFlags = bf.CompletePage
+	//}
+
 	md := bf.New(bf.WithExtensions(bf.CommonExtensions))
 	ast := md.Parse(input)
 	var buff bytes.Buffer
-	r := bf.NewHTMLRenderer(bf.HTMLRendererParameters{})
+	if page {
+		writeHeader(&buff, "doot")
+	}
+	r := bf.NewHTMLRenderer(bf.HTMLRendererParameters{
+		Flags: bf.CompletePage})
 	ast.Walk(func(node *bf.Node, entering bool) bf.WalkStatus {
 		if node.Type == bf.Table {
 			if entering {
@@ -79,5 +92,31 @@ func main() {
 		}
 		return bf.GoToNext
 	})
+	if page {
+		writeFooter(&buff)
+	}
 	fmt.Printf("%s\n", buff.Bytes())
+}
+
+func writeHeader(w *bytes.Buffer, title string) {
+	w.WriteString("<!DOCTYPE html>\n")
+	w.WriteString("<html lang='en-us'>\n")
+	w.WriteString("<head>\n")
+	w.WriteString("<meta charset='utf-8'>\n")
+	w.WriteString("<title>")
+	w.WriteString(title)
+	w.WriteString("</title>\n")
+	w.WriteString("<link rel='stylesheet' href='css/picnic.min.css' />\n")
+	w.WriteString("<link rel='stylesheet' href='css/cheat.css' />\n")
+	w.WriteString("</head>\n\n")
+	w.WriteString("<body>\n")
+	w.WriteString("<main>\n")
+	w.WriteString("<div class'flex three'>\n")
+}
+
+func writeFooter(w *bytes.Buffer) {
+	w.WriteString("</div>\n")
+	w.WriteString("</main>\n")
+	w.WriteString("</body>\n")
+	w.WriteString("</html>\n")
 }
